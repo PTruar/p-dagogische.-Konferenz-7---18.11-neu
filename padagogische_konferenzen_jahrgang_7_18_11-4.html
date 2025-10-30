@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anmeldung – Pädagogische Konferenzen Jahrgang 7 (18.11.)</title>
+  <style>
+    :root{
+      --bg:#f8fafc;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --fg:#0f172a;
+      --muted:#475569;
+      --accent:#2563eb;
+      --accent-2:#1e40af;
+      --danger:#dc2626;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,"Helvetica Neue",Arial,sans-serif;}
+    .container{max-width:1100px;margin:auto;padding:24px;}
+    header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+    h1{font-size:clamp(1.4rem,2.2vw,2rem);margin:0}
+    .sub{color:var(--muted)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px}
+    button,.btn{appearance:none;border:1px solid var(--border);background:#fff;color:var(--fg);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn-primary:hover{background:var(--accent-2);}
+    .btn-delete{color:#fff;background:var(--danger);border-color:var(--danger);font-weight:bold;font-size:1rem;line-height:1;border-radius:50%;width:28px;height:28px;justify-content:center;}
+    .btn-delete:hover{background:#b91c1c;}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
+    .card{background:var(--card);border:2px solid var(--border);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.06);overflow:hidden;display:flex;flex-direction:column}
+    .card header{padding:14px 16px;border-bottom:1px solid var(--border)}
+    .card h2{font-size:1.1rem;margin:0}
+    .meta{font-size:.9rem;color:var(--muted)}
+    .card .body{padding:12px 16px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th,td{padding:8px 10px;text-align:left}
+    th{font-size:.85rem;color:var(--muted);font-weight:700}
+    td{background:#fff;border:1px solid var(--border);border-radius:10px}
+    input[type="text"], select, textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit}
+    textarea{min-height:44px;resize:vertical}
+    .help{background:#eef2ff;border:1px dashed #c7d2fe;color:#3730a3;padding:10px 12px;border-radius:12px}
+    footer{margin-top:24px;color:var(--muted);font-size:.92rem}
+    .fine{font-size:.85rem;color:var(--muted)}
+    .label{display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:.85rem}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Pädagogische Konferenzen – Jahrgang 7</h1>
+        <div class="sub">Datum: <strong>18.11.</strong> · Bitte hier eintragen, ob Sie teilnehmen und ggf. mit welchen Schüler/innen Redebedarf besteht.</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn-primary" id="downloadCsvAll">Alles als CSV herunterladen</button>
+        <button class="btn" id="downloadJson">Daten (JSON) speichern</button>
+      </div>
+    </header>
+
+    <div class="help">
+      <strong>So geht's:</strong> Wählen Sie unten Ihre Klasse aus, klicken Sie bei der Klasse auf <em>„Eintrag hinzufügen“</em>, tragen Sie Ihren Namen ein und wählen Sie die Teilnahme aus. Optional können Sie Schüler/innen mit Redebedarf nennen. Jeder Eintrag kann einzeln gelöscht werden (rotes Kreuz neben Namen). Änderungen werden zentral gespeichert, damit alle Lehrkräfte sie sehen.
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <footer>
+      <p class="fine">Zeitslots am 18.11.: <strong>1.</strong> 13:30–14:10 (7.5, 7.4, 7.8) · <strong>2.</strong> 14:10–14:50 (7.6, 7.3, 7.2) · <strong>3.</strong> 14:50–15:30 (7.1, 7.7)</p>
+    </footer>
+  </div>
+
+  <script>
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // WICHTIG: HIER die Apps-Script-URL eintragen (Schritt-für-Schritt unten):
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwQSfuxh-3cokTgB-GQdXdvj7-emOnPH1cH_U5vtv4bFMc888ebu6wklrI6qU_-EXPP/exec';
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+    const EVENT_DATE = '18.11.';
+
+    const slots = {
+      1: { label: '1. Zeitslot', time: '13:30–14:10', classes: ['7.5', '7.4', '7.8'] },
+      2: { label: '2. Zeitslot', time: '14:10–14:50', classes: ['7.6', '7.3', '7.2'] },
+      3: { label: '3. Zeitslot', time: '14:50–15:30', classes: ['7.1', '7.7'] }
+    };
+
+    const classes = [
+      { name: '7.5', slot: 1 }, { name: '7.4', slot: 1 }, { name: '7.8', slot: 1 },
+      { name: '7.6', slot: 2 }, { name: '7.3', slot: 2 }, { name: '7.2', slot: 2 },
+      { name: '7.1', slot: 3 }, { name: '7.7', slot: 3 }
+    ];
+
+    let state = {}; // { '7.1': [rows], ... }
+
+    // --- API Helfer ---
+    async function apiList(){
+      const res = await fetch(API_URL, { method:'GET' });
+      const j = await res.json();
+      if(!j.ok) throw new Error('API list fehlgeschlagen');
+      return j.data;
+    }
+    async function apiUpsert(row){
+      const res = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'upsert', ...row })
+      });
+      const j = await res.json();
+      if(!j.ok) throw new Error('API upsert fehlgeschlagen');
+      return j;
+    }
+    async function apiDelete(id){
+      const res = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'delete', id })
+      });
+      const j = await res.json();
+      if(!j.ok) throw new Error('API delete fehlgeschlagen');
+      return j;
+    }
+
+    // --- UI Aufbau ---
+    const cards = document.getElementById('cards');
+
+    for(const c of classes){
+      const slotCfg = slots[c.slot];
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = `
+        <header>
+          <div>
+            <h2>Klasse ${c.name}</h2>
+            <div class="meta">${slotCfg.label}: <strong>${slotCfg.time}</strong> · Datum: ${EVENT_DATE}</div>
+          </div>
+          <div class="label">Einträge: <strong id="count-${c.name}">0</strong></div>
+          <button class="btn" data-action="add" data-class="${c.name}">Eintrag hinzufügen</button>
+          <button class="btn" data-action="csv" data-class="${c.name}">CSV für ${c.name}</button>
+        </header>
+        <div class="body">
+          <table>
+            <thead><tr><th>Fachlehrer/in – Name</th><th>Teilnahme</th><th>Schüler/innen / Redebedarf</th></tr></thead>
+            <tbody id="tbody-${c.name}"></tbody>
+          </table>
+        </div>`;
+      cards.appendChild(card);
+    }
+
+    function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+    function renderClass(cls){
+      const tbody = document.getElementById(`tbody-${cls}`);
+      tbody.innerHTML = '';
+      const rows = state[cls] || [];
+      document.getElementById(`count-${cls}`).textContent = rows.length;
+      for(const row of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" placeholder="Ihr Name" value="${escapeHtml(row.name||'')}" data-field="name" style="flex:1;">
+              <button class="btn-delete" data-action="delete" title="Eintrag löschen">🗑️</button>
+            </div>
+          </td>
+          <td>
+            <select data-field="status">
+              <option value="Komme" ${row.status==='Komme'?'selected':''}>Komme</option>
+              <option value="Kann nicht" ${row.status==='Kann nicht'?'selected':''}>Kann nicht</option>
+            </select>
+          </td>
+          <td><textarea data-field="notes" placeholder="z. B. Name(n) der Schüler/innen">${escapeHtml(row.notes||'')}</textarea></td>`;
+
+        tr.addEventListener('change', async (e)=>{
+          const f = e.target.dataset.field;
+          if(!f) return;
+          const idx = (state[cls]||[]).findIndex(r=>r.id===row.id);
+          if(idx>=0){
+            state[cls][idx][f] = e.target.value;
+            await apiUpsert(state[cls][idx]);
+          }
+        });
+
+        tr.querySelector('[data-action="delete"]').addEventListener('click', async ()=>{
+          await apiDelete(row.id);
+          state[cls] = (state[cls]||[]).filter(r=>r.id!==row.id);
+          renderClass(cls);
+        });
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Initial laden
+    (async function init(){
+      const all = await apiList();
+      state = {};
+      for(const c of classes) state[c.name] = [];
+      for(const r of all){
+        if(!state[r.klasse]) state[r.klasse] = [];
+        state[r.klasse].push(r);
+      }
+      for(const c of classes){ renderClass(c.name); }
+    })();
+
+    // Buttons: Add / CSV / JSON-Export (clientseitig)
+    cards.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const cls = btn.dataset.class;
+      if(action==='add'){
+        const row = { id: crypto.randomUUID(), klasse: cls, name:'', status:'Komme', notes:'', timestamp:'' };
+        await apiUpsert(row);
+        state[cls] = [...(state[cls]||[]), row];
+        renderClass(cls);
+      }
+      if(action==='csv'){
+        const csv = forCsv(state, {onlyClass: cls});
+        const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `anmeldungen-${cls}-18-11.csv`; a.click(); URL.revokeObjectURL(a.href);
+      }
+    });
+
+    document.getElementById('downloadCsvAll').addEventListener('click', ()=>{
+      const csv = forCsv(state);
+      const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'anmeldungen-alle-18-11.csv'; a.click(); URL.revokeObjectURL(a.href);
+    });
+
+    document.getElementById('downloadJson').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'anmeldungen-jg7-18-11.json'; a.click(); URL.revokeObjectURL(a.href);
+    });
+
+    function forCsv(data,opts={}){
+      const lines=[[ 'Datum','Zeitslot','Zeit','Klasse','Fachlehrer/in','Teilnahme','Redebedarf' ].join(';')];
+      for(const c of classes){
+        if(opts.onlyClass && opts.onlyClass!==c.name) continue;
+        const slot=slots[c.slot];
+        for(const r of (data[c.name]||[])){
+          lines.push([EVENT_DATE,`${c.slot}. Zeitslot`,slot.time,c.name,r.name||'',r.status||'',(r.notes||'').replaceAll('\n',' ')].join(';'));
+        }
+      }
+      return lines.join('\n');
+    }
+  </script>
+</body>
+</html>
